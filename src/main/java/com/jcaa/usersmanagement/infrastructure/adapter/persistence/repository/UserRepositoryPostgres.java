@@ -15,8 +15,6 @@ import com.jcaa.usersmanagement.infrastructure.adapter.persistence.exception.Per
 import com.jcaa.usersmanagement.infrastructure.adapter.persistence.mapper.UserPersistenceMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
@@ -31,8 +29,8 @@ import java.util.Optional;
 @Slf4j
 @Repository
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "db.type", havingValue = "mysql", matchIfMissing = true)
-public class UserRepositoryMySQL
+@ConditionalOnProperty(name = "db.type", havingValue = "postgresql")
+public class UserRepositoryPostgres
     implements SaveUserPort,
         UpdateUserPort,
         GetUserByIdPort,
@@ -65,8 +63,7 @@ public class UserRepositoryMySQL
       + "ORDER BY name ASC";
 
   private static final String SQL_DELETE =
-        "DELETE FROM users "
-        + "WHERE id = ?";
+      "DELETE FROM users WHERE id = ?";
 
   private final DataSource dataSource;
 
