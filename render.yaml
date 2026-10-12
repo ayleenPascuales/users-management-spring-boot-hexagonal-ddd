@@ -20,7 +20,7 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: DB_SSL_MODE
-        value: REQUIRED
+        sync: false
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_FROM_ADDRESS
