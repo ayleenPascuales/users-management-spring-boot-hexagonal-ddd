@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: users-management-api
+    name: users-management-spring-boot-hexagonal-ddd-ayleen
     runtime: docker
     plan: free
     branch: main
@@ -14,7 +14,7 @@ services:
       - key: DB_PORT
         sync: false
       - key: DB_NAME
-        value: defaultdb
+        value: crud_usuarios
       - key: DB_USERNAME
         sync: false
       - key: DB_PASSWORD

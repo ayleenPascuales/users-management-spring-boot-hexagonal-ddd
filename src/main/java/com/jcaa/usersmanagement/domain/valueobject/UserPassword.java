@@ -4,6 +4,7 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
 import com.jcaa.usersmanagement.domain.exception.InvalidUserPasswordException;
 import java.util.Objects;
 
+
 public final class UserPassword {
 
   private static final int MINIMUM_LENGTH = 8;
@@ -14,6 +15,7 @@ public final class UserPassword {
   private UserPassword(final String value) {
     this.value = value;
   }
+
 
   /**
    * Crea un UserPassword desde texto plano: valida y aplica hash BCrypt. Usar cuando el usuario
