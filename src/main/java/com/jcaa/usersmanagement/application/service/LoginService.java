@@ -12,9 +12,11 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LoginService implements LoginUseCase {
@@ -48,11 +50,19 @@ public class LoginService implements LoginUseCase {
         .orElseThrow(InvalidCredentialsException::becauseCredentialsAreInvalid);
   }
 
-  private static void verifyPasswordOrFail(final String plainPassword, final UserModel user) {
+  private static void verifyPasswordOrFail(
+        final String plainPassword,
+        final UserModel user) {
+
+    log.info("Verificando contraseña del usuario.");
+
     if (!user.getPassword().verifyPlain(plainPassword)) {
-      throw InvalidCredentialsException.becauseCredentialsAreInvalid();
+        log.warn("La verificación de contraseña ha fallado.");
+        throw InvalidCredentialsException.becauseCredentialsAreInvalid();
     }
-  }
+
+    log.info("La contraseña fue verificada correctamente.");
+}
 
   private static void ensureUserIsActiveOrFail(final UserModel user) {
     if (user.getStatus() != UserStatus.ACTIVE) {
