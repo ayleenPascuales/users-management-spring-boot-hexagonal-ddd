@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
@@ -99,20 +100,32 @@ public class UserRepositoryMySQL
     }
   }
 
-  @Override
-  public Optional<UserModel> getByEmail(final UserEmail email) {
-    try (final Connection connection = dataSource.getConnection();
-         final PreparedStatement statement = connection.prepareStatement(SQL_SELECT_BY_EMAIL)) {
-      statement.setString(1, email.value());
-      final ResultSet resultSet = statement.executeQuery();
-      if (!resultSet.next()) {
-        return Optional.empty();
-      }
-      return Optional.of(UserPersistenceMapper.fromResultSetToModel(resultSet));
-    } catch (final SQLException exception) {
-      throw PersistenceException.becauseFindByEmailFailed(email.value(), exception);
+  
+@Override
+public Optional<UserModel> getByEmail(final UserEmail email) {
+  try (final Connection connection = dataSource.getConnection();
+       final PreparedStatement statement = connection.prepareStatement(SQL_SELECT_BY_EMAIL)) {
+
+    statement.setString(1, email.value());
+
+    log.info("Buscando usuario por correo: {}", email.value());
+
+    final ResultSet resultSet = statement.executeQuery();
+
+    if (!resultSet.next()) {
+      log.warn("No se encontró usuario para el correo consultado.");
+      return Optional.empty();
     }
+
+    log.info("Se encontró un usuario para el correo consultado.");
+
+    return Optional.of(UserPersistenceMapper.fromResultSetToModel(resultSet));
+
+  } catch (final SQLException exception) {
+    throw PersistenceException.becauseFindByEmailFailed(email.value(), exception);
   }
+}
+
 
   @Override
   public List<UserModel> getAll() {
