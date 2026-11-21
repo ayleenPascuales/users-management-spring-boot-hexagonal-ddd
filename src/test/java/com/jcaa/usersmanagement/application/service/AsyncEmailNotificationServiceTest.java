@@ -25,45 +25,65 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 @DisplayName("EmailNotificationService asíncrono")
 class AsyncEmailNotificationServiceTest {
 
-  @Test
-  @DisplayName("La creación de usuario no espera a que termine el envío SMTP")
-  void shouldReturnWithoutWaitingForEmailDelivery() throws InterruptedException {
-    final EmailSenderPort emailSenderPort = mock(EmailSenderPort.class);
-    final CountDownLatch sendingStarted = new CountDownLatch(1);
-    final CountDownLatch allowSendingToFinish = new CountDownLatch(1);
-    doAnswer(
-            invocation -> {
-              sendingStarted.countDown();
-              allowSendingToFinish.await(5, TimeUnit.SECONDS);
-              return null;
-            })
-        .when(emailSenderPort)
-        .send(any());
+    @Test
+    @DisplayName("La creación de usuario no espera a que termine el envío del correo")
+    void shouldReturnWithoutWaitingForEmailDelivery() throws InterruptedException {
 
-    try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
-      context.register(AsyncNotificationConfig.class, EmailNotificationService.class);
-      context.registerBean(EmailSenderPort.class, () -> emailSenderPort);
-      context.refresh();
-      final EmailNotificationService service = context.getBean(EmailNotificationService.class);
+        final EmailSenderPort emailSenderPort = mock(EmailSenderPort.class);
+        final CountDownLatch sendingStarted = new CountDownLatch(1);
+        final CountDownLatch allowSendingToFinish = new CountDownLatch(1);
 
-      try {
-        assertTimeout(
-            Duration.ofSeconds(1),
-            () -> service.notifyUserCreated(createUser(), "Secure123!"));
-        assertTrue(sendingStarted.await(1, TimeUnit.SECONDS));
-      } finally {
-        allowSendingToFinish.countDown();
-      }
+        doAnswer(invocation -> {
+            sendingStarted.countDown();
+            allowSendingToFinish.await(5, TimeUnit.SECONDS);
+            return null;
+        }).when(emailSenderPort).send(any());
+
+        try (AnnotationConfigApplicationContext context =
+                     new AnnotationConfigApplicationContext()) {
+
+            context.register(
+                    AsyncNotificationConfig.class,
+                    EmailNotificationService.class
+            );
+
+            context.registerBean(
+                    EmailSenderPort.class,
+                    () -> emailSenderPort
+            );
+
+            context.refresh();
+
+            final EmailNotificationService service =
+                    context.getBean(EmailNotificationService.class);
+
+            try {
+                assertTimeout(
+                        Duration.ofSeconds(1),
+                        () -> service.notifyUserCreated(createUser())
+                );
+
+                assertTrue(
+                        sendingStarted.await(1, TimeUnit.SECONDS),
+                        "El envío del correo debería haber comenzado"
+                );
+
+            } finally {
+                allowSendingToFinish.countDown();
+            }
+        }
     }
-  }
 
-  private static UserModel createUser() {
-    return new UserModel(
-        new UserId("8f684dc4-0c67-4813-8d58-7b5e7f7937b8"),
-        new UserName("Ada Lovelace"),
-        new UserEmail("ada@example.com"),
-        UserPassword.fromHash("$2a$12$abcdefghijklmnopqrstuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"),
-        UserRole.ADMIN,
-        UserStatus.ACTIVE);
-  }
+    private static UserModel createUser() {
+        return new UserModel(
+                new UserId("8f684dc4-0c67-4813-8d58-7b5e7f7937b8"),
+                new UserName("Ada Lovelace"),
+                new UserEmail("ada@example.com"),
+                UserPassword.fromHash(
+                        "$2a$12$abcdefghijklmnopqrstuuuuuuuuuuuuuuuuuuuuuuuuuuuuu"
+                ),
+                UserRole.ADMIN,
+                UserStatus.ACTIVE
+        );
+    }
 }

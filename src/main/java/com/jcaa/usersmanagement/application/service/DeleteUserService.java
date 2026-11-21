@@ -1,3 +1,4 @@
+
 package com.jcaa.usersmanagement.application.service;
 
 import com.jcaa.usersmanagement.application.port.in.DeleteUserUseCase;
@@ -5,7 +6,7 @@ import com.jcaa.usersmanagement.application.port.out.DeleteUserPort;
 import com.jcaa.usersmanagement.application.port.out.GetUserByIdPort;
 import com.jcaa.usersmanagement.application.service.dto.command.DeleteUserCommand;
 import com.jcaa.usersmanagement.application.service.mapper.UserApplicationMapper;
-import com.jcaa.usersmanagement.domain.exception.UserNotFoundException;
+import com.jcaa.usersmanagement.domain.model.UserModel;
 import com.jcaa.usersmanagement.domain.valueobject.UserId;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -19,29 +20,36 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class DeleteUserService implements DeleteUserUseCase {
 
-  private final DeleteUserPort deleteUserPort;
-  private final GetUserByIdPort getUserByIdPort;
-  private final Validator validator;
+    private final DeleteUserPort deleteUserPort;
+    private final GetUserByIdPort getUserByIdPort;
+    private final EmailNotificationService emailNotificationService;
+    private final Validator validator;
 
-  @Override
-  public void execute(final DeleteUserCommand command) {
-    validateCommand(command);
+    @Override
+    public void execute(final DeleteUserCommand command) {
+        validateCommand(command);
 
-    final UserId userId = UserApplicationMapper.fromDeleteCommandToUserId(command);
-    ensureUserExists(userId);
-    deleteUserPort.delete(userId);
-  }
+        final UserId userId =
+                UserApplicationMapper.fromDeleteCommandToUserId(command);
 
-  private void validateCommand(final DeleteUserCommand command) {
-    final Set<ConstraintViolation<DeleteUserCommand>> violations = validator.validate(command);
-    if (!violations.isEmpty()) {
-      throw new ConstraintViolationException(violations);
+        final UserModel user = getUserByIdPort.getById(userId)
+                .orElseThrow(() ->
+                        com.jcaa.usersmanagement.domain.exception
+                                .UserNotFoundException
+                                .becauseIdWasNotFound(userId.value())
+                );
+
+        emailNotificationService.notifyUserDeleted(user);
+
+        deleteUserPort.delete(userId);
     }
-  }
 
-  private void ensureUserExists(final UserId userId) {
-    getUserByIdPort
-        .getById(userId)
-        .orElseThrow(() -> UserNotFoundException.becauseIdWasNotFound(userId.value()));
-  }
+    private void validateCommand(final DeleteUserCommand command) {
+        final Set<ConstraintViolation<DeleteUserCommand>> violations =
+                validator.validate(command);
+
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
+    }
 }

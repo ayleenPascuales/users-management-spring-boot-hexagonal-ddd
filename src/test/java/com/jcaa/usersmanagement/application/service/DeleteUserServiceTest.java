@@ -26,79 +26,96 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/**
- * Tests para DeleteUserService.
- *
- * <p>Cubre: flujo feliz (delete invocado), usuario no encontrado y validación del command.
- */
 @DisplayName("DeleteUserService")
 @ExtendWith(MockitoExtension.class)
 class DeleteUserServiceTest {
 
-  @Mock private DeleteUserPort deleteUserPort;
-  @Mock private GetUserByIdPort getUserByIdPort;
+    @Mock
+    private DeleteUserPort deleteUserPort;
 
-  private DeleteUserService service;
+    @Mock
+    private GetUserByIdPort getUserByIdPort;
 
-  @BeforeEach
-  void setUp() {
-    try (final ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory()) {
-      service =
-          new DeleteUserService(deleteUserPort, getUserByIdPort, validatorFactory.getValidator());
+    @Mock
+    private EmailNotificationService emailNotificationService;
+
+    private DeleteUserService service;
+
+    @BeforeEach
+    void setUp() {
+        try (final ValidatorFactory validatorFactory =
+                     Validation.buildDefaultValidatorFactory()) {
+
+            service = new DeleteUserService(
+                    deleteUserPort,
+                    getUserByIdPort,
+                    emailNotificationService,
+                    validatorFactory.getValidator()
+            );
+        }
     }
-  }
 
-  // ── flujo feliz
+    @Test
+    @DisplayName("execute() elimina al usuario y envía una notificación cuando existe")
+    void shouldDeleteAndNotifyWhenUserExists() {
 
-  @Test
-  @DisplayName("execute() invoca deleteUserPort cuando el usuario existe")
-  void shouldDeleteWhenUserExists() {
-    // Arrange
-    final DeleteUserCommand command = new DeleteUserCommand("u-001");
+        final DeleteUserCommand command =
+                new DeleteUserCommand("u-001");
 
-    final UserModel existing =
-        new UserModel(
-            new UserId("u-001"),
-            new UserName("John Arrieta"),
-            new UserEmail("john@example.com"),
-            UserPassword.fromHash("$2a$12$abcdefghijklmnopqrstuO"),
-            UserRole.ADMIN,
-            UserStatus.ACTIVE);
+        final UserModel existing =
+                new UserModel(
+                        new UserId("u-001"),
+                        new UserName("John Arrieta"),
+                        new UserEmail("john@example.com"),
+                        UserPassword.fromHash("$2a$12$abcdefghijklmnopqrstuO"),
+                        UserRole.ADMIN,
+                        UserStatus.ACTIVE
+                );
 
-    when(getUserByIdPort.getById(any())).thenReturn(Optional.of(existing));
+        when(getUserByIdPort.getById(any()))
+                .thenReturn(Optional.of(existing));
 
-    // Act
-    service.execute(command);
+        service.execute(command);
 
-    // Assert
-    verify(deleteUserPort).delete(new UserId("u-001"));
-  }
+        verify(emailNotificationService).notifyUserDeleted(existing);
+        verify(deleteUserPort).delete(new UserId("u-001"));
+    }
 
-  // ── usuario no encontrado
+    @Test
+    @DisplayName("execute() lanza UserNotFoundException cuando el id no existe")
+    void shouldThrowWhenUserNotFound() {
 
-  @Test
-  @DisplayName("execute() lanza UserNotFoundException cuando el id no existe")
-  void shouldThrowWhenUserNotFound() {
-    // Arrange
-    final DeleteUserCommand command = new DeleteUserCommand("no-existe");
+        final DeleteUserCommand command =
+                new DeleteUserCommand("no-existe");
 
-    when(getUserByIdPort.getById(any())).thenReturn(Optional.empty());
+        when(getUserByIdPort.getById(any()))
+                .thenReturn(Optional.empty());
 
-    // Act & Assert
-    assertThrows(UserNotFoundException.class, () -> service.execute(command));
-    verify(deleteUserPort, never()).delete(any());
-  }
+        assertThrows(
+                UserNotFoundException.class,
+                () -> service.execute(command)
+        );
 
-  // ── validación del command
+        verify(deleteUserPort, never()).delete(any());
+        verifyNoInteractions(emailNotificationService);
+    }
 
-  @Test
-  @DisplayName("execute() lanza ConstraintViolationException cuando el id está en blanco")
-  void shouldThrowWhenCommandIsInvalid() {
-    // Arrange
-    final DeleteUserCommand command = new DeleteUserCommand("  ");
+    @Test
+    @DisplayName("execute() lanza ConstraintViolationException cuando el id está en blanco")
+    void shouldThrowWhenCommandIsInvalid() {
 
-    // Act & Assert
-    assertThrows(ConstraintViolationException.class, () -> service.execute(command));
-    verifyNoInteractions(deleteUserPort, getUserByIdPort);
-  }
+        final DeleteUserCommand command =
+                new DeleteUserCommand("  ");
+
+        assertThrows(
+                ConstraintViolationException.class,
+                () -> service.execute(command)
+        );
+
+        verifyNoInteractions(
+                deleteUserPort,
+                getUserByIdPort,
+                emailNotificationService
+        );
+    }
 }

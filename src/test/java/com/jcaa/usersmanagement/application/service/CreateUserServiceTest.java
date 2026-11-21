@@ -26,105 +26,133 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/**
- * Tests para CreateUserService.
- *
- * <p>Cubre: validación del command, email duplicado y flujo feliz (save + notificación).
- */
 @DisplayName("CreateUserService")
 @ExtendWith(MockitoExtension.class)
 class CreateUserServiceTest {
 
-  @Mock private SaveUserPort saveUserPort;
-  @Mock private GetUserByEmailPort getUserByEmailPort;
-  @Mock private EmailNotificationService emailNotificationService;
+    @Mock
+    private SaveUserPort saveUserPort;
 
-  private CreateUserService service;
+    @Mock
+    private GetUserByEmailPort getUserByEmailPort;
 
-  @BeforeEach
-  void setUp() {
-    try (final ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory()) {
-      service =
-          new CreateUserService(
-              saveUserPort,
-              getUserByEmailPort,
-              emailNotificationService,
-              validatorFactory.getValidator());
+    @Mock
+    private EmailNotificationService emailNotificationService;
+
+    private CreateUserService service;
+
+    @BeforeEach
+    void setUp() {
+        try (final ValidatorFactory validatorFactory =
+                     Validation.buildDefaultValidatorFactory()) {
+
+            service = new CreateUserService(
+                    saveUserPort,
+                    getUserByEmailPort,
+                    emailNotificationService,
+                    validatorFactory.getValidator()
+            );
+        }
     }
-  }
 
-  // ── flujo feliz
+    @Test
+    @DisplayName("execute() guarda el usuario y envía notificación cuando el email no existe")
+    void shouldSaveUserAndNotifyWhenEmailIsNew() {
 
-  @Test
-  @DisplayName("execute() guarda el usuario y envía notificación cuando el email no existe")
-  void shouldSaveUserAndNotifyWhenEmailIsNew() {
-    // Arrange
-    final CreateUserCommand command =
-        new CreateUserCommand("u-01", "John Arrieta", "john@example.com", "Pass1234", "ADMIN");
+        final CreateUserCommand command =
+                new CreateUserCommand(
+                        "u-01",
+                        "John Arrieta",
+                        "john@example.com",
+                        "Pass1234",
+                        "ADMIN"
+                );
 
-    final UserModel savedUser =
-        new UserModel(
-            new UserId("u-01"),
-            new UserName("John Arrieta"),
-            new UserEmail("john@example.com"),
-            UserPassword.fromPlainText("Pass1234"),
-            UserRole.ADMIN,
-            UserStatus.PENDING);
+        final UserModel savedUser =
+                new UserModel(
+                        new UserId("u-01"),
+                        new UserName("John Arrieta"),
+                        new UserEmail("john@example.com"),
+                        UserPassword.fromPlainText("Pass1234"),
+                        UserRole.ADMIN,
+                        UserStatus.PENDING
+                );
 
-    when(getUserByEmailPort.getByEmail(any())).thenReturn(Optional.empty());
-    when(saveUserPort.save(any())).thenReturn(savedUser);
+        when(getUserByEmailPort.getByEmail(any()))
+                .thenReturn(Optional.empty());
 
-    // Act
-    final UserModel result = service.execute(command);
+        when(saveUserPort.save(any()))
+                .thenReturn(savedUser);
 
-    // Assert
-    assertAll(
-        "flujo feliz de CreateUserService",
-        () -> assertNotNull(result, "resultado no debe ser null"),
-        () -> assertEquals("u-01", result.getId().value(), "id del usuario guardado"));
+        final UserModel result = service.execute(command);
 
-    verify(saveUserPort).save(any(UserModel.class));
-    verify(emailNotificationService).notifyUserCreated(savedUser, "Pass1234");
-  }
+        assertAll(
+                "flujo feliz de CreateUserService",
+                () -> assertNotNull(result, "resultado no debe ser null"),
+                () -> assertEquals("u-01", result.getId().value())
+        );
 
-  // ── email duplicado
+        verify(saveUserPort).save(any(UserModel.class));
+        verify(emailNotificationService).notifyUserCreated(savedUser);
+    }
 
-  @Test
-  @DisplayName("execute() lanza UserAlreadyExistsException cuando el email ya está registrado")
-  void shouldThrowWhenEmailAlreadyExists() {
-    // Arrange
-    final CreateUserCommand command =
-        new CreateUserCommand("u-02", "Jane Doe", "jane@example.com", "Pass5678", "MEMBER");
+    @Test
+    @DisplayName("execute() lanza UserAlreadyExistsException cuando el email ya está registrado")
+    void shouldThrowWhenEmailAlreadyExists() {
 
-    final UserModel existing =
-        new UserModel(
-            new UserId("u-99"),
-            new UserName("Jane Doe"),
-            new UserEmail("jane@example.com"),
-            UserPassword.fromPlainText("OtraPass1"),
-            UserRole.MEMBER,
-            UserStatus.ACTIVE);
+        final CreateUserCommand command =
+                new CreateUserCommand(
+                        "u-02",
+                        "Jane Doe",
+                        "jane@example.com",
+                        "Pass5678",
+                        "MEMBER"
+                );
 
-    when(getUserByEmailPort.getByEmail(any())).thenReturn(Optional.of(existing));
+        final UserModel existing =
+                new UserModel(
+                        new UserId("u-99"),
+                        new UserName("Jane Doe"),
+                        new UserEmail("jane@example.com"),
+                        UserPassword.fromPlainText("OtraPass1"),
+                        UserRole.MEMBER,
+                        UserStatus.ACTIVE
+                );
 
-    // Act & Assert
-    assertThrows(UserAlreadyExistsException.class, () -> service.execute(command));
-    verify(saveUserPort, never()).save(any());
-    verify(emailNotificationService, never()).notifyUserCreated(any(), any());
-  }
+        when(getUserByEmailPort.getByEmail(any()))
+                .thenReturn(Optional.of(existing));
 
-  // ── validación del command
+        assertThrows(
+                UserAlreadyExistsException.class,
+                () -> service.execute(command)
+        );
 
-  @Test
-  @DisplayName(
-      "execute() lanza ConstraintViolationException cuando el command tiene campos inválidos")
-  void shouldThrowWhenCommandIsInvalid() {
-    // Arrange — id en blanco y email inválido
-    final CreateUserCommand command =
-        new CreateUserCommand("", "Jo", "not-an-email", "short", "ADMIN");
+        verify(saveUserPort, never()).save(any());
+        verify(emailNotificationService, never()).notifyUserCreated(any());
+    }
 
-    // Act & Assert
-    assertThrows(ConstraintViolationException.class, () -> service.execute(command));
-    verifyNoInteractions(saveUserPort, getUserByEmailPort, emailNotificationService);
-  }
+    @Test
+    @DisplayName("execute() lanza ConstraintViolationException cuando el command tiene campos inválidos")
+    void shouldThrowWhenCommandIsInvalid() {
+
+        final CreateUserCommand command =
+                new CreateUserCommand(
+                        "",
+                        "Jo",
+                        "not-an-email",
+                        "short",
+                        "ADMIN"
+                );
+
+        assertThrows(
+                ConstraintViolationException.class,
+                () -> service.execute(command)
+        );
+
+        verifyNoInteractions(
+                saveUserPort,
+                getUserByEmailPort,
+                emailNotificationService
+        );
+    }
 }
