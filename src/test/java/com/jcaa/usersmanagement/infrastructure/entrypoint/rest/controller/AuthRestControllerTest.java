@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jcaa.usersmanagement.application.port.in.LoginUseCase;
+import com.jcaa.usersmanagement.application.port.in.CreateUserUseCase;
 import com.jcaa.usersmanagement.application.service.dto.command.LoginCommand;
 import com.jcaa.usersmanagement.domain.enums.UserRole;
 import com.jcaa.usersmanagement.domain.enums.UserStatus;
@@ -29,6 +30,7 @@ class AuthRestControllerTest {
 
   @Mock private LoginUseCase loginUseCase;
   @Mock private JwtTokenService jwtTokenService;
+  @Mock private CreateUserUseCase createUserUseCase;
 
   @Test
   void shouldAuthenticateAndReturnBearerToken() {
@@ -38,8 +40,8 @@ class AuthRestControllerTest {
     when(loginUseCase.execute(command)).thenReturn(user);
     when(jwtTokenService.generate(user)).thenReturn("signed.jwt.token");
     when(jwtTokenService.expirationSeconds()).thenReturn(900L);
-    final AuthRestController controller = new AuthRestController(loginUseCase, jwtTokenService);
-
+    final AuthRestController controller =
+        new AuthRestController(loginUseCase, createUserUseCase, jwtTokenService);
     // Act
     final LoginRestResponse response =
         controller.login(new LoginRestRequest(EMAIL, PASSWORD));

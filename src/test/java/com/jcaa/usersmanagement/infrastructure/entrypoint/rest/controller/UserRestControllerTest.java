@@ -90,6 +90,7 @@ class UserRestControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("POST /api/users debe crear un usuario válido")
   void shouldCreateUserThroughSpringMvc() throws Exception {
     final String request =
@@ -194,6 +195,7 @@ class UserRestControllerTest {
   }
 
   @Test
+  @WithMockUser(roles = "ADMIN")
   @DisplayName("POST /api/users debe rechazar una solicitud inválida antes del caso de uso")
   void shouldRejectInvalidCreateRequest() throws Exception {
     // Arrange
